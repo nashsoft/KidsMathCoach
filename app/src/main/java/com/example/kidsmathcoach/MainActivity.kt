@@ -42,27 +42,26 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val settingsFileName = "settings.json"
-        val settingsFilePath = File(filesDir, settingsFileName).absolutePath
-
-        // Сохранение настроек
-        var settings = Settings("username", 1, Operation.ADD, 0, 0)
-        saveSettingsToFile(this, settings, settingsFilePath)
-
-        // Загрузка настроек
-        var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
+//        // Сохранение настроек
+//        //var settings = Settings("username", 1, Operation.ADD, 0, 0)
+//        //saveSettingsToFile(this, settings, settingsFilePath)
 
         setContent {
             KidsMathCoachTheme {
-                //MainScreen()
+                val settingsFileName = "settings.json"
+                val settingsFilePath = File(filesDir, settingsFileName).absolutePath
+                // Загрузка первоначальных настроек
+                var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
+
                 val navController = rememberNavController()
-                //SettingsScreen(navController, this@MainActivity, settings, settingsFilePath)
 
                 NavHost(navController, startDestination = "MainScreen") {
                     composable("MainScreen") {
-                        MainScreen(navController)
+                        MainScreen(navController, loadedSettings)
                     }
                     composable("SettingsScreen") {
+                        //Повторная загрузка настроек
+                        var loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
                         SettingsScreen(navController, this@MainActivity, loadedSettings, settingsFilePath)
                     }
                 }
@@ -76,13 +75,13 @@ fun saveSettingsToFile(context: Context, settings: Settings, filePath: String) {
     File(filePath).writeText(json)
 }
 
-fun loadSettingsFromFile(context: Context, filePath: String): Settings {
+fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Считывание настроек из файла
     val json = File(filePath).readText()
     return Gson().fromJson(json, Settings::class.java)
 }
 
 @Composable
-fun MainScreen(navController: NavController) {
+fun MainScreen(navController: NavController, settings: Settings) {
     var operation by remember { mutableStateOf(Operation.ADD) }
     var num1 by remember { mutableIntStateOf((0..10).random()) }
     var num2 by remember { mutableIntStateOf((0..10).random()) }
@@ -263,7 +262,7 @@ fun SettingsScreen(navController: NavController,
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = CenterHorizontally
     ) {
-        // Поле для ввода ответа
+        // Поле для ввода имени пользователя
         OutlinedTextField(
             value = username,
             onValueChange = { newValue ->
