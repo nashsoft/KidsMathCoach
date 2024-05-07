@@ -1,5 +1,6 @@
 package com.example.kidsmathcoach
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -25,33 +26,44 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.compose.runtime.Composable
-//import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.res.painterResource
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.kidsmathcoach.ui.theme.KidsMathCoachTheme
-//import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.PaddingValues
 //import androidx.navigation.NavHost
+import com.google.gson.Gson
+import java.io.File
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val settingsFileName = "settings.json"
+        val settingsFilePath = File(filesDir, settingsFileName).absolutePath
+
+        // Сохранение настроек
+        var settings = Settings("username", 1, Operation.ADD, 0, 0)
+        saveSettingsToFile(this, settings, settingsFilePath)
+
+        // Загрузка настроек
+        var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
+
         setContent {
             KidsMathCoachTheme {
                 //MainScreen()
-                // В вашем фрагменте или активити, где происходит навигация между экранами:
                 val navController = rememberNavController()
+                //SettingsScreen(navController, this@MainActivity, settings, settingsFilePath)
 
                 NavHost(navController, startDestination = "MainScreen") {
                     composable("MainScreen") {
                         MainScreen(navController)
                     }
                     composable("SettingsScreen") {
-                        SettingsScreen(navController)
+                        SettingsScreen(navController, this@MainActivity, loadedSettings, settingsFilePath)
                     }
                 }
             }
@@ -59,7 +71,15 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+fun saveSettingsToFile(context: Context, settings: Settings, filePath: String) { //Сохранение настроек в файл
+    val json = Gson().toJson(settings)
+    File(filePath).writeText(json)
+}
 
+fun loadSettingsFromFile(context: Context, filePath: String): Settings {
+    val json = File(filePath).readText()
+    return Gson().fromJson(json, Settings::class.java)
+}
 
 @Composable
 fun MainScreen(navController: NavController) {
@@ -71,6 +91,8 @@ fun MainScreen(navController: NavController) {
     var isCorrect by remember { mutableStateOf(false) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
+
+
 
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -226,17 +248,46 @@ fun MainScreen(navController: NavController) {
 
 
 @Composable
-fun SettingsScreen(navController: NavController) {  //Экран настроек
-    Button(onClick = { /*onSaveSettings()*/ }) {
-        Text(text = "Сохранить настройки")
+fun SettingsScreen(navController: NavController,
+                   context: Context,
+                   settings: Settings,
+                   settingsFilePath: String) {  //Экран настроек
+
+    var username by remember { mutableStateOf(settings.username) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp)
+            .padding(top = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = CenterHorizontally
+    ) {
+        // Поле для ввода ответа
+        OutlinedTextField(
+            value = username,
+            onValueChange = { newValue ->
+                username = newValue
+            },
+            label = { Text("Ваше имя:") },
+            modifier = Modifier.width(250.dp),
+            textStyle = TextStyle(fontSize = 24.sp),
+            //keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+        Button(onClick = { // Сохранение настроек
+            var updatedSettings = settings.copy(username = username)
+            saveSettingsToFile(context, updatedSettings, settingsFilePath)
+            //Возвращаемся на главный экран
+            navigateBackToMainScreen(navController)
+        }) {
+            Text(text = "Сохранить настройки")
+        }
     }
 }
 
 
 
 
-//fun saveSettingsToStorage(settings: YourSettingsModel) {  //Сохранение настроек в файл
-//}
 
 fun navigateBackToMainScreen(navController: NavController) {
     navController.popBackStack()
@@ -259,3 +310,11 @@ enum class Operation(val symbol: String) {
 
     abstract fun calculate(num1: Int, num2: Int): Int
 }
+
+data class Settings(
+    var username: String,
+    var difficultyLevel: Int,
+    var lastOperation: Operation,
+    var correctAnswers: Int,
+    var incorrectAnswers: Int
+)
