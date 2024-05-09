@@ -90,9 +90,9 @@ fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Сч�
 @Composable
 fun MainScreen(navController: NavController, settings: Settings) {
     var operation by remember { mutableStateOf(settings.lastOperation) }
-    var num by remember { mutableIntStateOf((0..10.0.pow(settings.difficultyLevel.toDouble()).toInt()).random()) }
-    var num1 by remember { mutableIntStateOf((0..num) }
-    var num2 by remember { mutableIntStateOf((0..num) }
+    var num by remember { mutableIntStateOf(10.0.pow(settings.difficultyLevel.toDouble()).toInt()) }
+    var num1 by remember { mutableIntStateOf((0..num).random()) }
+    var num2 by remember { mutableIntStateOf((0..num).random()) }
     var answer by remember { mutableStateOf("") }
     var correctAnswer by remember { mutableIntStateOf(0) }
     var isCorrect by remember { mutableStateOf(false) }
