@@ -43,32 +43,31 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Сохранение настроек по-умолчанию
+        // Сохранение настроек по-умолчанию (при первом запуске приложения после установки)
         val initSettingsFileName = File(filesDir, "settings.json")
         val initSettingsFilePath = File(filesDir, "settings.json").absolutePath
         if (!initSettingsFileName.exists()) {
-            var initSettings = Settings("Username", 2, Operation.ADD, 0, 0)
+            val initSettings = Settings("Username", 1, Operation.ADD, 0, 0)
             saveSettingsToFile(this, initSettings, initSettingsFilePath)
         }
 
         setContent {
             KidsMathCoachTheme {
-                //val settingsFileName = "settings.json"
                 val settingsFilePath = File(filesDir, "settings.json").absolutePath
                 // Загрузка первоначальных настроек
-                var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
+                //var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
 
                 val navController = rememberNavController()
 
                 NavHost(navController, startDestination = "MainScreen") {
                     composable("MainScreen") {
                         //Повторная загрузка настроек
-                        var loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
+                        val loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
                         MainScreen(navController, loadedSettings)
                     }
                     composable("SettingsScreen") {
                         //Повторная загрузка настроек
-                        var loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
+                        val loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
                         SettingsScreen(navController, this@MainActivity, loadedSettings, settingsFilePath)
                     }
                 }
@@ -76,6 +75,18 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+fun navigateBackToMainScreen(navController: NavController) {
+    navController.popBackStack()
+}
+
+data class Settings(
+    var username: String,
+    var difficultyLevel: Int,
+    var lastOperation: Operation,
+    var correctAnswers: Int,
+    var incorrectAnswers: Int
+)
 
 fun saveSettingsToFile(context: Context, settings: Settings, filePath: String) { //Сохранение настроек в файл
     val json = Gson().toJson(settings)
@@ -87,17 +98,45 @@ fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Сч�
     return Gson().fromJson(json, Settings::class.java)
 }
 
+enum class DifficultyLevel(val level: Int) {
+    X1(1) {
+//        override fun calculate(num1: Int, num2: Int) = num1 + num2
+    },
+    X2(2) {
+//        override fun calculate(num1: Int, num2: Int) = num1 - num2
+    },
+    X3(3) {
+//        override fun calculate(num1: Int, num2: Int) = num1 * num2
+    };
+
+//    abstract fun calculate(num1: Int, num2: Int): Int
+}
+
+enum class Operation(val symbol: String) {
+    ADD("+") {
+        override fun calculate(num1: Int, num2: Int) = num1 + num2
+    },
+    SUB("-") {
+        override fun calculate(num1: Int, num2: Int) = num1 - num2
+    },
+    MUL("*") {
+        override fun calculate(num1: Int, num2: Int) = num1 * num2
+    };
+
+    abstract fun calculate(num1: Int, num2: Int): Int
+}
+
+
 @Composable
 fun MainScreen(navController: NavController, settings: Settings) {
     var operation by remember { mutableStateOf(settings.lastOperation) }
     var num by remember { mutableIntStateOf(10.0.pow(settings.difficultyLevel.toDouble()).toInt()) }
     var num1 by remember { mutableIntStateOf((0..num).random()) }
-    var num2 by remember { mutableIntStateOf((0..num).random()) }
+    var num2 by remember { mutableIntStateOf((0..num1).random()) }
     var answer by remember { mutableStateOf("") }
     var correctAnswer by remember { mutableIntStateOf(0) }
     var isCorrect by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
-
 
 
     Column(
@@ -105,6 +144,12 @@ fun MainScreen(navController: NavController, settings: Settings) {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.End
     ) {
+//        Text(
+//            "  ${settings.username}",
+//            modifier = Modifier.fillMaxWidth(),
+//            textAlign = TextAlign.Center,
+//            style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
+//        )
         Button( //Кнопка отображения настроек
             onClick = {
                 navController.navigate("SettingsScreen")
@@ -132,12 +177,12 @@ fun MainScreen(navController: NavController, settings: Settings) {
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = CenterHorizontally
     ) {
-        Text(
-            "Тренажер\n по математике\nдля ${settings.username}!!!\n",
-            modifier = Modifier.fillMaxWidth(),
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
-        )
+         Text(
+         "Тренажер\n по математике\nдля ${settings.username}!!!\n",
+         modifier = Modifier.fillMaxWidth(),
+         textAlign = TextAlign.Center,
+         style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
+         )
         Row(
             modifier = Modifier,
             verticalAlignment = Alignment.CenterVertically
@@ -199,7 +244,7 @@ fun MainScreen(navController: NavController, settings: Settings) {
         // Кнопка для генерации нового примера
         Button(
             onClick = {
-                num1 = (0..10).random()
+                num1 = (0..num).random()
                 num2 = (0..num1).random()
                 answer = ""
                 isCorrect = false
@@ -214,8 +259,6 @@ fun MainScreen(navController: NavController, settings: Settings) {
 
 
 
-
-
 //Экран настроек
 @Composable
 fun SettingsScreen(navController: NavController,
@@ -225,7 +268,9 @@ fun SettingsScreen(navController: NavController,
 
     var username by remember { mutableStateOf(settings.username) }
     var operation by remember { mutableStateOf(settings.lastOperation) }
-    var isMenuExpanded by remember { mutableStateOf(false) }
+    var difficultyLevel by remember { mutableIntStateOf(settings.difficultyLevel) }
+    var isOperationMenuExpanded by remember { mutableStateOf(false) }
+    var isDifficultyMenuExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -254,15 +299,15 @@ fun SettingsScreen(navController: NavController,
                 modifier = Modifier,
                 style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
             DropdownMenu(
-                expanded = isMenuExpanded,
-                onDismissRequest = { isMenuExpanded = false },
+                expanded = isOperationMenuExpanded,
+                onDismissRequest = { isOperationMenuExpanded = false },
                 modifier = Modifier.padding(8.dp),
             ) {
                 Operation.entries.forEach { operationType ->
                     DropdownMenuItem(
                         onClick = {
                             operation = operationType
-                            isMenuExpanded = false
+                            isOperationMenuExpanded = false
                         }
                     ) {
                         Text("  ${operationType.symbol}  ",
@@ -276,54 +321,64 @@ fun SettingsScreen(navController: NavController,
             }
             Text(
                 operation.symbol,
-                modifier = Modifier.clickable { isMenuExpanded = true },
+                modifier = Modifier.clickable { isOperationMenuExpanded = true },
                 style = TextStyle(
                     fontWeight = FontWeight.Bold,
                     fontSize = 30.sp
                 )
             )
         }
+        //Выбор сложности
+        Row(
+            modifier = Modifier,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Сложность: ",
+                modifier = Modifier,
+                style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
+            DropdownMenu(
+                expanded = isDifficultyMenuExpanded,
+                onDismissRequest = { isDifficultyMenuExpanded = false },
+                modifier = Modifier.padding(8.dp),
+            ) {
+                DifficultyLevel.entries.forEach { difficultyLevelType ->
+                    DropdownMenuItem(
+                        onClick = {
+                            difficultyLevel = difficultyLevelType.level
+                            isDifficultyMenuExpanded = false
+                        }
+                    ) {
+                        Text("  ${difficultyLevelType.level}  ",
+                            modifier = Modifier,
+                            style = TextStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 26.sp
+                            ))
+                    }
+                }
+            }
+            Text(
+                difficultyLevel.toString(),
+                modifier = Modifier.clickable { isDifficultyMenuExpanded = true },
+                style = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 30.sp
+                )
+            )
+        }
+        Button(onClick = { //Отмена сохранения настроек
+            //Возвращаемся на главный экран
+            navigateBackToMainScreen(navController)
+        }) {
+            Text(text = "Отмена")
+        }
         Button(onClick = { // Сохранение настроек
-            var updatedSettings = settings.copy(username = username, lastOperation = operation)
+            var updatedSettings = settings.copy(username = username, lastOperation = operation, difficultyLevel = difficultyLevel)
             saveSettingsToFile(context, updatedSettings, settingsFilePath)
             //Возвращаемся на главный экран
             navigateBackToMainScreen(navController)
         }) {
-            Text(text = "Сохранить настройки")
+            Text(text = "Сохранить")
         }
     }
 }
-
-
-
-
-
-fun navigateBackToMainScreen(navController: NavController) {
-    navController.popBackStack()
-}
-
-
-enum class Operation(val symbol: String) {
-    ADD("+") {
-        override fun calculate(num1: Int, num2: Int) = num1 + num2
-    },
-    SUB("-") {
-        override fun calculate(num1: Int, num2: Int) = num1 - num2
-    },
-    MUL("*") {
-        override fun calculate(num1: Int, num2: Int) = num1 * num2
-    }/*,
-    DIV("/") {
-        override fun calculate(num1: Int, num2: Int) = num1 / num2
-    }*/;
-
-    abstract fun calculate(num1: Int, num2: Int): Int
-}
-
-data class Settings(
-    var username: String,
-    var difficultyLevel: Int,
-    var lastOperation: Operation,
-    var correctAnswers: Int,
-    var incorrectAnswers: Int
-)
