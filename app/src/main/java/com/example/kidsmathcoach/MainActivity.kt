@@ -36,20 +36,25 @@ import androidx.compose.foundation.layout.PaddingValues
 //import androidx.navigation.NavHost
 import com.google.gson.Gson
 import java.io.File
+import kotlin.math.pow
 
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-//        // Сохранение настроек
-//        //var settings = Settings("username", 1, Operation.ADD, 0, 0)
-//        //saveSettingsToFile(this, settings, settingsFilePath)
+        // Сохранение настроек по-умолчанию
+        val initSettingsFileName = File(filesDir, "settings.json")
+        val initSettingsFilePath = File(filesDir, "settings.json").absolutePath
+        if (!initSettingsFileName.exists()) {
+            var initSettings = Settings("Username", 2, Operation.ADD, 0, 0)
+            saveSettingsToFile(this, initSettings, initSettingsFilePath)
+        }
 
         setContent {
             KidsMathCoachTheme {
-                val settingsFileName = "settings.json"
-                val settingsFilePath = File(filesDir, settingsFileName).absolutePath
+                //val settingsFileName = "settings.json"
+                val settingsFilePath = File(filesDir, "settings.json").absolutePath
                 // Загрузка первоначальных настроек
                 var loadedSettings = loadSettingsFromFile(this, settingsFilePath)
 
@@ -57,6 +62,8 @@ class MainActivity : ComponentActivity() {
 
                 NavHost(navController, startDestination = "MainScreen") {
                     composable("MainScreen") {
+                        //Повторная загрузка настроек
+                        var loadedSettings = loadSettingsFromFile(this@MainActivity, settingsFilePath)
                         MainScreen(navController, loadedSettings)
                     }
                     composable("SettingsScreen") {
@@ -82,13 +89,13 @@ fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Сч�
 
 @Composable
 fun MainScreen(navController: NavController, settings: Settings) {
-    var operation by remember { mutableStateOf(Operation.ADD) }
-    var num1 by remember { mutableIntStateOf((0..10).random()) }
-    var num2 by remember { mutableIntStateOf((0..10).random()) }
+    var operation by remember { mutableStateOf(settings.lastOperation) }
+    var num by remember { mutableIntStateOf((0..10.0.pow(settings.difficultyLevel.toDouble()).toInt()).random()) }
+    var num1 by remember { mutableIntStateOf((0..num) }
+    var num2 by remember { mutableIntStateOf((0..num) }
     var answer by remember { mutableStateOf("") }
     var correctAnswer by remember { mutableIntStateOf(0) }
     var isCorrect by remember { mutableStateOf(false) }
-    var isMenuExpanded by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
 
 
@@ -126,49 +133,11 @@ fun MainScreen(navController: NavController, settings: Settings) {
         horizontalAlignment = CenterHorizontally
     ) {
         Text(
-            "Тренажер\n по математике\nдля Дюшки!!!\n",
+            "Тренажер\n по математике\nдля ${settings.username}!!!\n",
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
         )
-
-        Row(
-            modifier = Modifier,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Операция: ",
-                    modifier = Modifier,
-                    style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
-            DropdownMenu(
-                expanded = isMenuExpanded,
-                onDismissRequest = { isMenuExpanded = false },
-                modifier = Modifier.padding(8.dp),
-            ) {
-                Operation.entries.forEach { operationType ->
-                    DropdownMenuItem(
-                        onClick = {
-                            operation = operationType
-                            isMenuExpanded = false
-                        }
-                    ) {
-                        Text("  ${operationType.symbol}  ",
-                            modifier = Modifier,
-                            style = TextStyle(
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 26.sp
-                            ))
-                    }
-                }
-            }
-            Text(
-                operation.symbol,
-                modifier = Modifier.clickable { isMenuExpanded = true },
-                style = TextStyle(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 30.sp
-                )
-                )
-        }
         Row(
             modifier = Modifier,
             verticalAlignment = Alignment.CenterVertically
@@ -209,12 +178,12 @@ fun MainScreen(navController: NavController, settings: Settings) {
         // Отображение результата проверки
         if (answer.isNotEmpty() && isChecked) {
             if (isCorrect) {
-                Text("Дюшка молодец!",
+                Text("А ${settings.username} то молодец!",
                     style = MaterialTheme.typography.body1.copy(fontSize = 18.sp))
             } else {
                 Text(
                     buildAnnotatedString {
-                        append("Дюшка подумай!\n Правильный ответ: ")
+                        append("${settings.username}, подумай!\n Правильный ответ: ")
                         withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
                             append("$correctAnswer")
                         }
@@ -246,13 +215,17 @@ fun MainScreen(navController: NavController, settings: Settings) {
 
 
 
+
+//Экран настроек
 @Composable
 fun SettingsScreen(navController: NavController,
                    context: Context,
                    settings: Settings,
-                   settingsFilePath: String) {  //Экран настроек
+                   settingsFilePath: String) {
 
     var username by remember { mutableStateOf(settings.username) }
+    var operation by remember { mutableStateOf(settings.lastOperation) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -271,10 +244,47 @@ fun SettingsScreen(navController: NavController,
             label = { Text("Ваше имя:") },
             modifier = Modifier.width(250.dp),
             textStyle = TextStyle(fontSize = 24.sp),
-            //keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
+        //Выбор математической операции
+        Row(
+            modifier = Modifier,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Операция: ",
+                modifier = Modifier,
+                style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
+            DropdownMenu(
+                expanded = isMenuExpanded,
+                onDismissRequest = { isMenuExpanded = false },
+                modifier = Modifier.padding(8.dp),
+            ) {
+                Operation.entries.forEach { operationType ->
+                    DropdownMenuItem(
+                        onClick = {
+                            operation = operationType
+                            isMenuExpanded = false
+                        }
+                    ) {
+                        Text("  ${operationType.symbol}  ",
+                            modifier = Modifier,
+                            style = TextStyle(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 26.sp
+                            ))
+                    }
+                }
+            }
+            Text(
+                operation.symbol,
+                modifier = Modifier.clickable { isMenuExpanded = true },
+                style = TextStyle(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 30.sp
+                )
+            )
+        }
         Button(onClick = { // Сохранение настроек
-            var updatedSettings = settings.copy(username = username)
+            var updatedSettings = settings.copy(username = username, lastOperation = operation)
             saveSettingsToFile(context, updatedSettings, settingsFilePath)
             //Возвращаемся на главный экран
             navigateBackToMainScreen(navController)
