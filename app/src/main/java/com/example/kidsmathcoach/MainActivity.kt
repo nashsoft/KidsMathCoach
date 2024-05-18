@@ -1,11 +1,12 @@
 package com.example.kidsmathcoach
 
 import android.content.Context
+import android.graphics.Paint
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-//import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -33,6 +34,14 @@ import androidx.navigation.compose.rememberNavController
 import com.example.kidsmathcoach.ui.theme.KidsMathCoachTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
+import com.example.kidsmathcoach.ui.theme.Green
+import com.example.kidsmathcoach.ui.theme.Red
 //import androidx.navigation.NavHost
 import com.google.gson.Gson
 import java.io.File
@@ -93,7 +102,7 @@ fun saveSettingsToFile(context: Context, settings: Settings, filePath: String) {
     File(filePath).writeText(json)
 }
 
-fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Считывание настроек из файла
+fun loadSettingsFromFile(context: Context, filePath: String): Settings { //Загрузка настроек из файла
     val json = File(filePath).readText()
     return Gson().fromJson(json, Settings::class.java)
 }
@@ -137,6 +146,12 @@ fun MainScreen(navController: NavController, settings: Settings) {
     var correctAnswer by remember { mutableIntStateOf(0) }
     var isCorrect by remember { mutableStateOf(false) }
     var isChecked by remember { mutableStateOf(false) }
+    var previousAnswer by remember { mutableStateOf("") }//Отслеживаем, чтобы не было накрутки результатов
+
+    val context = LocalContext.current
+
+    var correctAnswers by remember { mutableStateOf(settings.correctAnswers) }
+    var incorrectAnswers by remember { mutableStateOf(settings.incorrectAnswers) }
 
 
     Column(
@@ -144,12 +159,6 @@ fun MainScreen(navController: NavController, settings: Settings) {
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.End
     ) {
-//        Text(
-//            "  ${settings.username}",
-//            modifier = Modifier.fillMaxWidth(),
-//            textAlign = TextAlign.Center,
-//            style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
-//        )
         Button( //Кнопка отображения настроек
             onClick = {
                 navController.navigate("SettingsScreen")
@@ -172,25 +181,37 @@ fun MainScreen(navController: NavController, settings: Settings) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .padding(top = 20.dp),
+            .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = CenterHorizontally
     ) {
-         Text(
-         "Тренажер\n по математике\nдля ${settings.username}!!!\n",
+         Text(//Имя пользователя
+         "${settings.username}\n",
          modifier = Modifier.fillMaxWidth(),
          textAlign = TextAlign.Center,
-         style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
+         style = MaterialTheme.typography.body1.copy(fontSize = 30.sp)
          )
+
+        // Расчет и отображение пропорции правильных и неправильных ответов
+        var totalAnswers = correctAnswers + incorrectAnswers
+        var correctFraction = if (totalAnswers > 0) correctAnswers.toFloat() / totalAnswers else 0f
+        var incorrectFraction = if (totalAnswers > 0) incorrectAnswers.toFloat() / totalAnswers else 0f
+
+        // Отображение количества правильных и неправильных ответов
+        if (totalAnswers>0) {Text("Прогресс", style = TextStyle(fontSize = 18.sp))}
+        //Text("Правильно: $correctAnswers      Неправильно: $incorrectAnswers", style = TextStyle(fontSize = 20.sp))
+
+        ProportionBar(correctFraction, incorrectFraction, correctAnswers, incorrectAnswers)
+
+
         Row(
             modifier = Modifier,
+            horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
+            //Текст примера для решения
             Text("$num1  ${operation.symbol}  $num2  =  ",
                 style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
-
 
         // Поле для ввода ответа
         OutlinedTextField(
@@ -207,39 +228,72 @@ fun MainScreen(navController: NavController, settings: Settings) {
             textStyle = TextStyle(fontSize = 24.sp),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Отображение результата проверки или знак вопроса
+            if (answer.isNotEmpty() && isChecked) {
+                if (isCorrect) {
+//                Text("А ${settings.username} то молодец!",
+//                    style = MaterialTheme.typography.body1.copy(fontSize = 18.sp))
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_yes),
+                        contentDescription = "Правильный ответ",
+                        modifier = Modifier.size(64.dp)
+                    )
+                } else {
+//                Text(
+//                    buildAnnotatedString {
+//                        append("${settings.username}, подумай!\n Правильный ответ: ")
+//                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+//                            append("$correctAnswer")
+//                        }
+//                    },
+//                    modifier = Modifier.fillMaxWidth(),
+//                    textAlign = TextAlign.Center,
+//                    style = MaterialTheme.typography.body1.copy(fontSize = 18.sp),
+//                )
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_no),
+                        contentDescription = "Неправильный ответ",
+                        modifier = Modifier.size(64.dp)
+                    )
+                }
+            } else {
+                Image(
+                painter = painterResource(id = R.drawable.ic_question),
+                contentDescription = "Вопрос",
+                modifier = Modifier.size(64.dp)
+            )}
         }
+
+
         // Кнопка для проверки ответа
         Button(
             onClick = {
-                correctAnswer = operation.calculate(num1, num2)
-                isCorrect = answer.toIntOrNull() == correctAnswer
-                isChecked = true
+                if (!isChecked || answer != previousAnswer) { //Избегаем накруток (повторных ответов)
+                    correctAnswer = operation.calculate(num1, num2)
+                    isCorrect = answer.toIntOrNull() == correctAnswer
+                    isChecked = true
+                    previousAnswer = answer
+
+                    if (isCorrect) {
+                        correctAnswers += 1
+                        settings.correctAnswers = correctAnswers
+                    } else {
+                        incorrectAnswers += 1
+                        settings.incorrectAnswers = incorrectAnswers
+                    }
+                    // Сохранение обновленных настроек
+                    val settingsFilePath = File(context.filesDir, "settings.json").absolutePath
+                    saveSettingsToFile(context, settings, settingsFilePath)
+                }
+
             },
             modifier = Modifier.padding(8.dp)
         ) {
             Text("Проверить")
         }
 
-        // Отображение результата проверки
-        if (answer.isNotEmpty() && isChecked) {
-            if (isCorrect) {
-                Text("А ${settings.username} то молодец!",
-                    style = MaterialTheme.typography.body1.copy(fontSize = 18.sp))
-            } else {
-                Text(
-                    buildAnnotatedString {
-                        append("${settings.username}, подумай!\n Правильный ответ: ")
-                        withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                            append("$correctAnswer")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.body1.copy(fontSize = 18.sp),
-                )
-
-            }
-        }
 
         // Кнопка для генерации нового примера
         Button(
@@ -269,17 +323,53 @@ fun SettingsScreen(navController: NavController,
     var username by remember { mutableStateOf(settings.username) }
     var operation by remember { mutableStateOf(settings.lastOperation) }
     var difficultyLevel by remember { mutableIntStateOf(settings.difficultyLevel) }
+    var correctAnswers by remember { mutableStateOf(settings.correctAnswers) }
+    var incorrectAnswers by remember { mutableStateOf(settings.incorrectAnswers) }
+
     var isOperationMenuExpanded by remember { mutableStateOf(false) }
     var isDifficultyMenuExpanded by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
-            .padding(top = 20.dp),
+            .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = CenterHorizontally
     ) {
+        Text("Настройки:",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.body1.copy(fontSize = 28.sp)
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Отображение количества правильных и неправильных ответов
+        //Text("Правильных ответов: $correctAnswers", style = TextStyle(fontSize = 20.sp))
+        //Text("Неправильных ответов: $incorrectAnswers", style = TextStyle(fontSize = 20.sp))
+
+        // Расчет и отображение пропорции правильных и неправильных ответов
+        var totalAnswers = correctAnswers + incorrectAnswers
+        var correctFraction = if (totalAnswers > 0) correctAnswers.toFloat() / totalAnswers else 0f
+        var incorrectFraction = if (totalAnswers > 0) incorrectAnswers.toFloat() / totalAnswers else 0f
+
+        if (totalAnswers>0) {Text("Прогресс пользователя:", style = TextStyle(fontSize = 18.sp))}
+        ProportionBar(correctFraction, incorrectFraction, correctAnswers, incorrectAnswers)
+
+        Button(//Кнопка сброса статистики
+            onClick = {
+                // Сбросить количество правильных и неправильных ответов
+                val updatedSettings = settings.copy(correctAnswers = 0, incorrectAnswers = 0)
+                // Сохранить обновленные настройки
+                saveSettingsToFile(context, updatedSettings, settingsFilePath)
+                // Обновить значения переменных в состоянии
+                correctAnswers = 0
+                incorrectAnswers = 0
+            }
+        ) {
+            Text(text = "Сбросить статистику")
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+
         // Поле для ввода имени пользователя
         OutlinedTextField(
             value = username,
@@ -290,6 +380,7 @@ fun SettingsScreen(navController: NavController,
             modifier = Modifier.width(250.dp),
             textStyle = TextStyle(fontSize = 24.sp),
         )
+
         //Выбор математической операции
         Row(
             modifier = Modifier,
@@ -328,6 +419,7 @@ fun SettingsScreen(navController: NavController,
                 )
             )
         }
+
         //Выбор сложности
         Row(
             modifier = Modifier,
@@ -366,19 +458,123 @@ fun SettingsScreen(navController: NavController,
                 )
             )
         }
-        Button(onClick = { //Отмена сохранения настроек
-            //Возвращаемся на главный экран
-            navigateBackToMainScreen(navController)
-        }) {
-            Text(text = "Отмена")
+
+        //Кнопки отмены и сохранения
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier
+        ) {
+            Button(onClick = { //Отмена сохранения настроек
+                //Возвращаемся на главный экран
+                navigateBackToMainScreen(navController)
+            }) {
+                Text(text = "Отмена")
+            }
+            Spacer(modifier = Modifier.width(50.dp))
+            Button(onClick = { // Сохранение настроек
+                var updatedSettings = settings.copy(username = username, lastOperation = operation, difficultyLevel = difficultyLevel, correctAnswers = correctAnswers, incorrectAnswers = incorrectAnswers)
+                saveSettingsToFile(context, updatedSettings, settingsFilePath)
+                //Возвращаемся на главный экран
+                navigateBackToMainScreen(navController)
+            }) {
+                Text(text = "Сохранить")
+            }
         }
-        Button(onClick = { // Сохранение настроек
-            var updatedSettings = settings.copy(username = username, lastOperation = operation, difficultyLevel = difficultyLevel)
-            saveSettingsToFile(context, updatedSettings, settingsFilePath)
-            //Возвращаемся на главный экран
-            navigateBackToMainScreen(navController)
-        }) {
-            Text(text = "Сохранить")
+    }
+}
+
+
+//Отображение пропорций ответов без текста
+@Composable
+fun ProportionBar(correctFraction: Float, incorrectFraction: Float) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(30.dp)
+    ) {
+        val width = size.width
+        val height = size.height
+        val totalWidth = width * (correctFraction + incorrectFraction)
+
+        var currentX = 0f
+
+        drawRect(
+            color = Green,
+            topLeft = Offset(currentX, 0f),
+            size = Size(width * correctFraction, height)
+        )
+
+        currentX += width * correctFraction
+
+        drawRect(
+            color = Red,
+            topLeft = Offset(currentX, 0f),
+            size = Size(width * incorrectFraction, height)
+        )
+    }
+}
+
+
+//Отображение пропорций ответов с текстом
+@Composable
+fun ProportionBar(correctFraction: Float, incorrectFraction: Float, correctAnswers: Int, incorrectAnswers: Int) {
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(30.dp)
+    ) {
+        val width = size.width
+        val height = size.height
+        val totalWidth = width * (correctFraction + incorrectFraction)
+
+        var currentX = 0f
+
+        // Рисуем зеленую область
+        drawRect(
+            color = Green,
+            topLeft = Offset(currentX, 0f),
+            size = Size(width * correctFraction, height)
+        )
+
+        // Рисуем надпись в зеленой области
+        if (correctAnswers>0) {
+            drawIntoCanvas {
+                it.nativeCanvas.drawText(
+                    "$correctAnswers",
+                    width * correctFraction / 2, // Позиция по оси X (по центру ширины закрашенной области)
+                    (height / 2) + 20, // Позиция по оси Y (по центру высоты области)
+                    Paint().apply {
+                        color = Color.White.toArgb() // Цвет текста
+                        textSize = 60f // Размер текста
+                        textAlign = Paint.Align.CENTER // Выравнивание текста по центру
+                    }
+                )
+            }
+        }
+
+        currentX += width * correctFraction
+
+        // Рисуем красную область
+        drawRect(
+            color = Red,
+            topLeft = Offset(currentX, 0f),
+            size = Size(width * incorrectFraction, height)
+        )
+
+        // Рисуем надпись в красной области
+        if (incorrectAnswers>0) {
+            drawIntoCanvas {
+                it.nativeCanvas.drawText(
+                    "$incorrectAnswers",
+                    currentX + width * incorrectFraction / 2, // Позиция по оси X (по центру ширины закрашенной области)
+                    (height / 2) + 20, // Позиция по оси Y (по центру высоты области)
+                    Paint().apply {
+                        color = Color.White.toArgb() // Цвет текста
+                        textSize = 60f // Размер текста
+                        textAlign = Paint.Align.CENTER // Выравнивание текста по центру
+                    }
+                )
+            }
         }
     }
 }
