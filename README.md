@@ -1,7 +1,7 @@
 # KidsMathCoach
 v1.0.0 (2024-05-19)<br>
-Небольшое интерактивное приложение-тренажер по математике для детей.
-Вот [скриншоты](https://github.com/nashsoft/KidsMathCoach/issues/1) экранов приложения
+Небольшое интерактивное приложение-тренажер по математике для детей.<BR><BR>
+![скриншоты](https://github.com/nashsoft/KidsMathCoach/blob/main/MainScreen.png) ![скриншоты](https://github.com/nashsoft/KidsMathCoach/blob/main/SettingScreen.png)
 
 ## Возможности
 
