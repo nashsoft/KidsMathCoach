@@ -457,6 +457,9 @@ fun SettingsScreen(navController: NavController,
                     fontSize = 30.sp
                 )
             )
+            Text(" разрядная",
+                modifier = Modifier,
+                style = MaterialTheme.typography.body1.copy(fontSize = 26.sp))
         }
 
         //Кнопки отмены и сохранения
