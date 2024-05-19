@@ -197,12 +197,13 @@ fun MainScreen(navController: NavController, settings: Settings) {
         var correctFraction = if (totalAnswers > 0) correctAnswers.toFloat() / totalAnswers else 0f
         var incorrectFraction = if (totalAnswers > 0) incorrectAnswers.toFloat() / totalAnswers else 0f
 
-        // Отображение количества правильных и неправильных ответов
-        if (totalAnswers>0) {Text("Прогресс", style = TextStyle(fontSize = 18.sp))}
-        //Text("Правильно: $correctAnswers      Неправильно: $incorrectAnswers", style = TextStyle(fontSize = 20.sp))
+        // Отображение количества правильных и неправильных ответов только когда есть ответы
+        if (totalAnswers>0) {
+            Text("Правильно                |            Неправильно", style = TextStyle(fontSize = 18.sp))
+            //Text("Правильно: $correctAnswers      Неправильно: $incorrectAnswers", style = TextStyle(fontSize = 20.sp))
 
-        ProportionBar(correctFraction, incorrectFraction, correctAnswers, incorrectAnswers)
-
+            ProportionBar(correctFraction, incorrectFraction, correctAnswers, incorrectAnswers)
+        }
 
         Row(
             modifier = Modifier,
@@ -230,7 +231,7 @@ fun MainScreen(navController: NavController, settings: Settings) {
         )
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Отображение результата проверки или знак вопроса
+            // Отображение результата проверки ответа или просто знак вопроса
             if (answer.isNotEmpty() && isChecked) {
                 if (isCorrect) {
 //                Text("А ${settings.username} то молодец!",
@@ -306,7 +307,7 @@ fun MainScreen(navController: NavController, settings: Settings) {
             },
             modifier = Modifier.padding(8.dp)
         ) {
-            Text("Другой пример")
+            Text("Новый пример")
         }
     }
 }
