@@ -21,7 +21,7 @@ class SettingsRepositoryImpl(private val context: Context) : SettingsRepository 
             val json = file.readText()
             Gson().fromJson(json, Settings::class.java)
         } else {
-            //Сохранение настроек по-умолчанию
+            //Сохранение настроек по-умолчанию (Первый запуск или после очистки кеша)
             Settings("Username", 1, Operation.ADD, 0, 0)
         }
     }
